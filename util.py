@@ -1,5 +1,6 @@
 from __future__ import division
 import shutil
+import cv2
 import numpy as np
 import torch
 from path import Path
@@ -34,7 +35,7 @@ def opencv_rainbow(resolution=1000):
     return LinearSegmentedColormap.from_list('opencv_rainbow', opencv_rainbow_data, resolution)
 
 
-COLORMAPS = {'rainbow': opencv_rainbow(),
+COLORMAPS = {'rainbow': opencv_rainbow(), 'inferno': cm.get_cmap('inferno', 10000), 
              'magma': high_res_colormap(cm.get_cmap('magma')),
              'bone': cm.get_cmap('bone', 10000)}
 
@@ -54,13 +55,13 @@ def tensor2array(tensor, max_value=None, colormap='rainbow'):
     return array
 
 
-def save_checkpoint(save_path, dispnet_state, exp_pose_state, is_best, filename='checkpoint.pth.tar'):
+def save_checkpoint(save_path, dispnet_state, exp_pose_state, is_best, epoch, filename='checkpoint.pth.tar'):
     file_prefixes = ['dispnet', 'exp_pose']
     states = [dispnet_state, exp_pose_state]
     for (prefix, state) in zip(file_prefixes, states):
-        torch.save(state, save_path/'{}_{}'.format(prefix, filename))
+        torch.save(state, save_path/'{}_{}_{}'.format(prefix, epoch, filename))
 
     if is_best:
         for prefix in file_prefixes:
-            shutil.copyfile(save_path/'{}_{}'.format(prefix, filename),
+            shutil.copyfile(save_path/'{}'.format(prefix),
                             save_path/'{}_model_best.pth.tar'.format(prefix))

@@ -1,13 +1,14 @@
 from __future__ import division
+import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
-from inverse_warp import inverse_warp2, inverse_warp
+from inverse_warp import inverse_warp2, inverse_warp, inverse_warp_classical, pose_vec2mat
 import math
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-
+#classic SSIM loss function
 class SSIM(nn.Module):
     """Layer to compute the SSIM loss between a pair of images
     """
@@ -54,9 +55,11 @@ def compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, re
 
     num_scales = min(len(tgt_depth), max_scales)
     for ref_img, ref_depth, pose, pose_inv in zip(ref_imgs, ref_depths, poses, poses_inv):
+     
         for s in range(num_scales):
 
             b, _, h, w = tgt_img.size()
+      
             tgt_img_scaled = tgt_img
             ref_img_scaled = ref_img
             intrinsic_scaled = intrinsics
@@ -76,6 +79,41 @@ def compute_photo_and_geometry_loss(tgt_img, ref_imgs, intrinsics, tgt_depth, re
             geometry_loss += (geometry_loss1 + geometry_loss2)
 
     return photo_loss, geometry_loss
+
+#rotation loss with respect to LKanade method's classical rotations
+def compute_rotation_consistency_loss(rotmats_classic, rotmats_inv_classic, poses, poses_inv):
+    
+    fwd_diff = 0
+    bwd_diff = 0    
+
+    for rotmat_classic, rotmat_inv_classic, pose, pose_inv in zip(rotmats_classic, 
+                                                                  rotmats_inv_classic, 
+                                                                  poses, poses_inv):
+        for i in range(len(pose)):
+            global_pose = np.eye(4)
+            inv_global_pose = np.eye(4)
+            
+        
+            pose_vec = torch.unsqueeze(pose[i], dim=0)
+            inv_pose_vec = torch.unsqueeze(pose_inv[i], dim=0)   
+              
+            pose_mat = pose_vec2mat(pose_vec).squeeze(0).cpu().detach().numpy()         
+            pose_mat = np.vstack([pose_mat, np.array([0, 0, 0, 1])])
+            global_pose = global_pose @  np.linalg.inv(pose_mat)
+            fwd_rotation_mat = global_pose[0:3, 0:3]
+                
+            inv_pose_mat = pose_vec2mat(inv_pose_vec).squeeze(0).cpu().detach().numpy()
+            inv_pose_mat = np.vstack([inv_pose_mat, np.array([0, 0, 0, 1])])
+            inv_global_pose = inv_global_pose @  np.linalg.inv(inv_pose_mat)
+            bwd_rotation_mat = inv_global_pose[0:3, 0:3]
+            
+       
+            fwd_diff += getAngle(fwd_rotation_mat, rotmat_classic[i])
+            bwd_diff += getAngle(bwd_rotation_mat, rotmat_inv_classic[i])
+        
+    loss = fwd_diff / len(pose)*len(poses) + bwd_diff / len(pose)*len(poses)
+    return loss
+    
 
 
 def compute_pairwise_loss(tgt_img, ref_img, tgt_depth, ref_depth, pose, intrinsic, with_ssim, with_mask, with_auto_mask, padding_mode):
@@ -99,6 +137,7 @@ def compute_pairwise_loss(tgt_img, ref_img, tgt_depth, ref_depth, pose, intrinsi
         diff_img = diff_img * weight_mask
 
     # compute all loss
+   
     reconstruction_loss = mean_on_mask(diff_img, valid_mask)
     geometry_consistency_loss = mean_on_mask(diff_depth, valid_mask)
 
@@ -162,13 +201,6 @@ def compute_errors(gt, pred, dataset):
         crop_mask[y1:y2, x1:x2] = 1
         max_depth = 80
 
-    if dataset == 'nyu':
-        crop_mask = gt[0] != gt[0]
-        y1, y2 = int(0.09375 * gt.size(1)), int(0.98125 * gt.size(1))
-        x1, x2 = int(0.0640625 * gt.size(2)), int(0.9390625 * gt.size(2))
-        crop_mask[y1:y2, x1:x2] = 1
-        max_depth = 10
-
     for current_gt, current_pred in zip(gt, pred):
         valid = (current_gt > 0.1) & (current_gt < max_depth)
         valid = valid & crop_mask
@@ -190,3 +222,13 @@ def compute_errors(gt, pred, dataset):
 
     return [metric.item() / batch_size for metric in [abs_diff, abs_rel, sq_rel, a1, a2, a3]]
 
+def getAngle(P,Q):
+    R = np.dot(P,Q.T)
+    theta = (np.trace(R) -1)/2
+    theta = clamp(theta,-1,1)
+    return np.arccos(theta) * (180/np.pi)
+
+def clamp(val, minval, maxval):
+    if val < minval: return minval
+    if val > maxval: return maxval
+    return val

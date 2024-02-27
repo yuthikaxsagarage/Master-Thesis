@@ -26,7 +26,7 @@ import cv2
 class PoseEstimator():
     
     @torch.no_grad()
-    def __init__(self, imagePath='./dataset/sequences/09/image_2/', preTrainedPoseNetwork='/home/anya/visual_odometry/visual_odometry_thesis/Thesis/checkpoints/resnet18_depth_256/07-31-19:55/exp_pose_model_best.pth.tar'):
+    def __init__(self, imagePath='./dataset/sequences/09/image_2/', preTrainedPoseNetwork='/home/anya/visual_odometry/visual_odometry_thesis/Thesis/checkpoints/resnet18_attention/07-31-19:55/exp_pose_model_best.pth.tar'):
         
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.imagePath = imagePath
@@ -35,7 +35,7 @@ class PoseEstimator():
         self.image_height = 256
         self.image_width = 832
         self.image_idx = 0
-        self.pose_net = models.PoseResNet().to(self.device)
+        self.pose_net = models.PoseAttentionNet().to(self.device)
         self.pose_net.load_state_dict(self.weights_pose['state_dict'], strict=False)
         self.pose_net.eval()
         self.trueX, self.trueY, self.trueZ, self.predX, self.predY, self.predZ = 0, 0, 0, 0 , 0 ,0
@@ -71,6 +71,7 @@ class PoseEstimator():
     
     def setGroundTruthPath(self, path):
        self.groundTruthPath = path
+       self.gtPoses = self.load_poses_from_txt(path)
         
     @torch.no_grad()
     def load_tensor_image(self, filename, img_width, img_height):
@@ -87,8 +88,10 @@ class PoseEstimator():
         self.image_idx = image_idx
         tensor_img1 = self.load_tensor_image(ref_img, self.image_width, self.image_height)
         tensor_img2 = self.load_tensor_image(current_image, self.image_width, self.image_height)
-        self.pose = self.pose_net(tensor_img1, tensor_img2)
+        self.pose = position = self.pose_net(tensor_img1, tensor_img2)
+
         self.pose_mat = pose_vec2mat(self.pose).squeeze(0).cpu().numpy()
+     
         self.pose_mat = np.vstack([self.pose_mat, np.array([0, 0, 0, 1])])
         self.global_pose = self.global_pose @  np.linalg.inv(self.pose_mat)
         dof12pose = self.global_pose[0:3, :].reshape(1, 12).squeeze()

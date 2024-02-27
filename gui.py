@@ -204,6 +204,7 @@ class Ui_OFCPose(QtWidgets.QWidget):
         self.traj = np.zeros((340,340,3), dtype=np.uint8)
       
         self.vo_frame.setPixmap(self.pixmap)
+        self.depth_frame.setPixmap(self.pixmap)
         self.vo_frame.setScaledContents(True)
         self.image_frame.setPixmap(self.pixmap)
         self.PoseSelect.setEnabled (True)

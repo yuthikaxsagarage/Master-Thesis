@@ -1,8 +1,9 @@
 from __future__ import division
 import torch
 import torch.nn.functional as F
-
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 pixel_coords = None
+import numpy as np
 
 
 def set_id_grid(depth):
@@ -258,6 +259,44 @@ def inverse_warp2(img, depth, ref_depth, pose, intrinsics, padding_mode='zeros')
     proj_cam_to_src_pixel = intrinsics @ pose_mat  # [B, 3, 4]
 
     rot, tr = proj_cam_to_src_pixel[:, :, :3], proj_cam_to_src_pixel[:, :, -1:]
+    src_pixel_coords, computed_depth = cam2pixel2(cam_coords, rot, tr, padding_mode)  # [B,H,W,2]
+    projected_img = F.grid_sample(img, src_pixel_coords, padding_mode=padding_mode, align_corners=False)
+
+    valid_points = src_pixel_coords.abs().max(dim=-1)[0] <= 1
+    valid_mask = valid_points.unsqueeze(1).float()
+
+    projected_depth = F.grid_sample(ref_depth, src_pixel_coords, padding_mode=padding_mode, align_corners=False)
+
+    return projected_img, valid_mask, projected_depth, computed_depth
+
+
+def inverse_warp_classical(img, depth, ref_depth, pose, intrinsics, classical_rot, padding_mode='zeros'):
+    """
+    Inverse warp a predicted depth map to the reference depth map.
+    """
+    check_sizes(img, 'img', 'B3HW')
+    check_sizes(depth, 'depth', 'B1HW')
+    check_sizes(ref_depth, 'ref_depth', 'B1HW')
+    check_sizes(pose, 'pose', 'B6')
+    check_sizes(intrinsics, 'intrinsics', 'B33')
+
+    batch_size, _, img_height, img_width = img.size()
+
+    cam_coords = pixel2cam(depth.squeeze(1), intrinsics.inverse())  # [B,3,H,W]
+
+    pose_mat = pose_vec2mat(pose)  # [B,3,4]
+    classical_rot = np.stack( classical_rot, axis=0 )
+    rot_tensor = torch.tensor(classical_rot).to(device).float()
+    rot_tensor = torch.squeeze(rot_tensor, 0)
+    # print(pose_mat, "camera")
+
+
+    # Get projection matrix for tgt camera frame to source pixel frame
+    proj_cam_to_src_pixel = intrinsics @ pose_mat  # [B, 3, 4]
+
+    tr = proj_cam_to_src_pixel[:, :, -1:]
+    rot =rot_tensor
+    
     src_pixel_coords, computed_depth = cam2pixel2(cam_coords, rot, tr, padding_mode)  # [B,H,W,2]
     projected_img = F.grid_sample(img, src_pixel_coords, padding_mode=padding_mode, align_corners=False)
 

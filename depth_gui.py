@@ -26,7 +26,7 @@ import cv2
 class DepthEstimator():
     
     @torch.no_grad()
-    def __init__(self, imagePath='./dataset/sequences/00/image_2/', preTrainedDepthNetwork='/home/anya/visual_odometry/visual_odometry_thesis/Thesis/models/dispnet_model_best.pth.tar'):
+    def __init__(self, imagePath='./dataset/sequences/00/image_2/', preTrainedDepthNetwork='/home/anya/visual_odometry/visual_odometry_thesis/Thesis/checkpoints/resnet18_attention/07-31-19:55/dispnet_model_best.pth.tar'):
         
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.imagePath = imagePath

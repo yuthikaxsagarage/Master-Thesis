@@ -395,20 +395,11 @@ class KittiEvalOdom():
         pred_0 = pred[idx_0]
 
         for i in pred:
-            # cur_gt = np.linalg.inv(gt_0) @ gt[i]
             cur_gt = gt[i]
             gt_xyz = cur_gt[:3, 3]
-
-            # cur_pred = np.linalg.inv(pred_0) @ pred[i]
             cur_pred = pred[i]
             pred_xyz = cur_pred[:3, 3]
-
             align_err = gt_xyz - pred_xyz
-
-            # print('i: ', i)
-            # print("gt: ", gt_xyz)
-            # print("pred: ", pred_xyz)
-            # input("debug")
             errors.append(np.sqrt(np.sum(align_err ** 2)))
         ate = np.sqrt(np.mean(np.asarray(errors) ** 2))
         return ate
@@ -436,8 +427,6 @@ class KittiEvalOdom():
 
             trans_errors.append(self.translation_error(rel_err))
             rot_errors.append(self.rotation_error(rel_err))
-        # rpe_trans = np.sqrt(np.mean(np.asarray(trans_errors) ** 2))
-        # rpe_rot = np.sqrt(np.mean(np.asarray(rot_errors) ** 2))
         rpe_trans = np.mean(np.asarray(trans_errors))
         rpe_rot = np.mean(np.asarray(rot_errors))
         return rpe_trans, rpe_rot
@@ -607,6 +596,7 @@ class KittiEvalOdom():
 
             # Save result summary
             self.write_result(f, i, [ave_t_err, ave_r_err, ate, rpe_trans, rpe_rot])
+            return ave_t_err, ave_r_err, ate, rpe_trans, rpe_rot
 
         f.close()
 
