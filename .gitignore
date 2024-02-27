@@ -1,0 +1,15 @@
+check
+checkpoints
+dataset
+GUI
+kitti_256
+kitti_data
+results
+resultsdepth
+vo_results
+vo_results2
+vo_results_3
+scripts
+*.pyc
+*.sh
+*.txt
