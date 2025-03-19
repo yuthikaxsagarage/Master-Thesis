@@ -130,9 +130,9 @@ If you use this code in your research, please cite:
 ```
 @article{visual_odometry,
   title={Guiding Visual Odometry through Classical Methods and Attention},
-  author={Your Name},
+  author={yuthika Sagaarge},
   journal={arXiv preprint},
-  year={2023}
+  year={2022}
 }
 ```
 
