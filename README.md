@@ -2,6 +2,8 @@
 
 A deep learning approach to visual odometry that combines neural networks with attention layer and classical computer vision techniques for improved camera pose estimation and depth perception.
 
+Click the image to navigate to the Demo Video
+
 [![Demo Video](https://i.ytimg.com/vi/lyk9tW-3_QM/maxresdefault.jpg)](https://www.youtube.com/watch?v=lyk9tW-3_QM "Visual Odometry Demo")
 
 ## Project Overview
